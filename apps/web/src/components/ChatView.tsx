@@ -1,5 +1,6 @@
 import { ThreadFind, ThreadFindCanvas, type ThreadFindControls } from "./chat/ThreadFindProvider";
 import { THREAD_FIND_BAR_RESERVED_HEIGHT } from "./chat/ThreadFindBar";
+import { FlowBand } from "~/flow/FlowBand";
 import { usageLimitRecoveryBannerItem } from "./chat/UsageLimitRecoveryBanner";
 import {
   resolveBackgroundDraftWorkspaceOptions,
@@ -11765,6 +11766,7 @@ export default function ChatView(props: ChatViewProps) {
                               }
                             />
                           ) : null}
+                          {composerMounted && <FlowBand />}
                           {!composerMounted ? null : (
                             <ChatComposer
                               canOperateThread={canOperateThread}
