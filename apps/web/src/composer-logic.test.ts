@@ -246,6 +246,26 @@ describe("composerSubmissionIntentForKey", () => {
 });
 
 describe("detectComposerTrigger", () => {
+  it("detects a slash command mid-sentence", () => {
+    const text = "please run /exp";
+    expect(detectComposerTrigger(text, text.length)).toEqual({
+      kind: "slash-command",
+      query: "exp",
+      rangeStart: "please run ".length,
+      rangeEnd: text.length,
+    });
+  });
+
+  it("does not treat a mid-sentence path as a slash command", () => {
+    const text = "look in /tmp/out";
+    expect(detectComposerTrigger(text, text.length)).toBeNull();
+  });
+
+  it("does not open the slash menu inside a word", () => {
+    const text = "and/or";
+    expect(detectComposerTrigger(text, text.length)).toBeNull();
+  });
+
   it("detects @path trigger at cursor", () => {
     const text = "Please check @src/com";
     const trigger = detectComposerTrigger(text, text.length);
