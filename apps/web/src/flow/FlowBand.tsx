@@ -9,6 +9,7 @@ import { toastManager } from "~/components/ui/toast";
 import chimeUrl from "./chime.wav?url";
 import {
   DEFAULT_MINUTES,
+  backToFocus,
   cycleDots,
   fresh,
   mmss,
@@ -40,6 +41,10 @@ const toggleTimer: Action = (shared, now) => ({
 const skipPhase: Action = (shared, now) => ({
   ...shared,
   pomodoro: skip(shared.pomodoro, shared.minutes, now),
+});
+const backFromBreak: Action = (shared) => ({
+  ...shared,
+  pomodoro: backToFocus(shared.pomodoro, shared.minutes),
 });
 const resetTimer: Action = (shared) => ({ ...shared, pomodoro: fresh(shared.minutes) });
 const togglePunch: Action = (shared, now) => ({
@@ -122,11 +127,16 @@ export function FlowBand() {
         <span className="font-semibold tabular-nums">{mmss(remainingMs(pomodoro, now))}</span>
         <span style={{ color: look.color }}>{cycleDots(pomodoro)}</span>
         <Button size="xs" variant="outline" onClick={() => change(toggleTimer)}>
-          {pomodoro.isRunning ? "Pause" : "Start"}
+          {startLabel(pomodoro, minutes)}
         </Button>
         {pomodoro.phase === "work" && (
           <Button size="xs" variant="ghost" onClick={() => change(skipPhase)}>
             Break
+          </Button>
+        )}
+        {pomodoro.phase !== "work" && (
+          <Button size="xs" variant="ghost" onClick={() => change(backFromBreak)}>
+            Back to focus
           </Button>
         )}
         <Button size="xs" variant="ghost-muted" onClick={() => change(skipPhase)}>
@@ -195,6 +205,14 @@ function save(shared: Shared): void {
 function notify(message: string, timeoutMs: number): void {
   toastManager.add({ type: "info", title: message, timeout: timeoutMs });
   void new Audio(chimeUrl).play().catch(() => {});
+}
+
+// "Continue" when focus waits part-way through a block.
+function startLabel(pomodoro: Pomodoro, minutes: Minutes): string {
+  if (pomodoro.isRunning) return "Pause";
+  return pomodoro.phase === "work" && pomodoro.leftMs < minutes.work * 60_000
+    ? "Continue"
+    : "Start";
 }
 
 function phaseKey(shared: Shared): string {
