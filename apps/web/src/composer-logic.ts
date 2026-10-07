@@ -260,10 +260,12 @@ export function detectComposerTrigger(text: string, cursorInput: number): Compos
   const cursor = clampCursor(text, cursorInput);
   const tokenStart = tokenStartForCursor(text, cursor);
   const token = text.slice(tokenStart, cursor);
-  if (token.startsWith("/")) {
+  // Mid-sentence `/name` opens the same menu; a second `/` (a path) closes it.
+  const inlineCommandMatch = /^\/([\p{L}\p{N}:_-]*)$/u.exec(token);
+  if (inlineCommandMatch) {
     return {
       kind: "slash-command",
-      query: token.slice(1),
+      query: inlineCommandMatch[1] ?? "",
       rangeStart: tokenStart,
       rangeEnd: cursor,
     };
