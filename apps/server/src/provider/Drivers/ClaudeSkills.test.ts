@@ -67,6 +67,67 @@ it.layer(NodeServices.layer)("discoverClaudeSkills", (it) => {
     }),
   );
 
+  it.effect("discovers enabled plugin skills as plugin:skill", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-claude-skills-" });
+      const configDir = path.join(tempDir, "claude-home");
+      const workspace = path.join(tempDir, "workspace");
+      const install = (name: string) =>
+        path.join(configDir, "plugins", "cache", "market", name, "1.0.0");
+
+      for (const name of ["flow", "off", "elsewhere"]) {
+        yield* writeSkill(
+          path.join(install(name), "skills"),
+          "explain",
+          ["---", "description: Explain code.", "disable-model-invocation: true", "---"].join("\n"),
+        );
+      }
+      yield* fs.writeFileString(
+        path.join(configDir, "plugins", "installed_plugins.json"),
+        `{"version": 2, "plugins": {
+          "flow@market": [{"scope": "user", "installPath": "${install("flow")}"}],
+          "off@market": [{"scope": "user", "installPath": "${install("off")}"}],
+          "elsewhere@market": [{"scope": "project", "installPath": "${install("elsewhere")}",
+            "projectPath": "${path.join(tempDir, "other")}"}]
+        }}`,
+      );
+      yield* fs.writeFileString(
+        path.join(configDir, "settings.json"),
+        `{"enabledPlugins": {"flow@market": true, "off@market": false, "elsewhere@market": true}}`,
+      );
+
+      // Skills listed in plugin.json, a root SKILL.md and commands/*.md count too.
+      yield* writeSkill(path.join(install("flow"), "skills", "group"), "listed", "# Listed");
+      yield* fs.makeDirectory(path.join(install("flow"), ".claude-plugin"), { recursive: true });
+      yield* fs.writeFileString(
+        path.join(install("flow"), ".claude-plugin", "plugin.json"),
+        `{"name": "flow", "skills": ["./skills/group"]}`,
+      );
+      yield* fs.writeFileString(path.join(install("flow"), "SKILL.md"), "# Root");
+      yield* fs.makeDirectory(path.join(install("flow"), "commands"), { recursive: true });
+      yield* fs.writeFileString(path.join(install("flow"), "commands", "review.md"), "# Review");
+
+      const skills = yield* discoverClaudeSkills({ homePath: configDir }, workspace);
+
+      assert.deepEqual(
+        skills.map((skill) => skill.name),
+        ["flow:explain", "flow:flow", "flow:listed", "flow:review"],
+      );
+      assert.deepEqual(skills.slice(0, 1), [
+        {
+          name: "flow:explain",
+          path: path.join(install("flow"), "skills", "explain", "SKILL.md"),
+          enabled: true,
+          scope: "user",
+          description: "Explain code.",
+          userInvocationOnly: true,
+        },
+      ]);
+    }),
+  );
+
   it.effect("ignores .agents/skills, which Claude Code does not load", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
