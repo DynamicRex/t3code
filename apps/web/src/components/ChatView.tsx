@@ -1,5 +1,4 @@
 import { ChatCanvas } from "./chat/ChatCanvas";
-import { FlowBand } from "~/flow/FlowBand";
 import { usageLimitRecoveryBannerItem } from "./chat/UsageLimitRecoveryBanner";
 import {
   resolveBackgroundDraftWorkspaceOptions,
@@ -11155,7 +11154,6 @@ export default function ChatView(props: ChatViewProps) {
                               }
                             />
                           ) : null}
-                          {composerMounted && <FlowBand />}
                           {!composerMounted ? null : (
                             <ChatComposer
                               reportedModelSelection={reportedModelSelection}
