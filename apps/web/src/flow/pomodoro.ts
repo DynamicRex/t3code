@@ -46,20 +46,12 @@ export function skip(pomodoro: Pomodoro, minutes: Minutes, now: number): Pomodor
   };
 }
 
-// Leaves a break for focus, waiting. A break taken early gives back its focus time and its dot;
-// after a finished focus block, the dot stays and a new block waits.
+// Leaves a break for focus, waiting, and gives back the break's dot. Focus resumes where it
+// stopped, or a new block waits if the focus block had run out.
 export function backToFocus(pomodoro: Pomodoro, minutes: Minutes): Pomodoro {
   if (pomodoro.phase === "work") return pomodoro;
-  const left = pomodoro.focusLeftMs ?? 0;
-  return left > 0
-    ? { phase: "work", isRunning: false, endsAt: 0, leftMs: left, breaks: pomodoro.breaks - 1 }
-    : {
-        phase: "work",
-        isRunning: false,
-        endsAt: 0,
-        leftMs: minutes.work * 60_000,
-        breaks: pomodoro.breaks,
-      };
+  const left = pomodoro.focusLeftMs || minutes.work * 60_000;
+  return { phase: "work", isRunning: false, endsAt: 0, leftMs: left, breaks: pomodoro.breaks - 1 };
 }
 
 // Moves on when the running phase hits zero.
