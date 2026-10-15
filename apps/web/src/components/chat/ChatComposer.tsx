@@ -223,6 +223,7 @@ import {
   type ExpandedImagePreview,
 } from "./ExpandedImagePreview";
 import { cn, isMacPlatform, randomUUID } from "~/lib/utils";
+import { FlowBand } from "~/flow/FlowBand";
 import {
   getComposerPromptLengthValidationMessage,
   getComposerSubmissionValidationMessage,
@@ -3613,6 +3614,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           }
           className={composerProviderState.composerFrameClassName}
         >
+          {/* Inside Main, not the host: an attached banner moves the card's backdrop here. */}
+          <FlowBand />
           <div
             ref={composerSurfaceRef}
             data-chat-composer-surface="true"
