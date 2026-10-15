@@ -31,7 +31,6 @@ import { useComposerResume } from "./chat/useComposerResume";
 import { ThreadFind, ThreadFindCanvas } from "./chat/ThreadFindProvider";
 import { closeThreadFind, openThreadFind, useThreadFindOpen } from "./chat/threadFindStore";
 import { THREAD_FIND_BAR_RESERVED_HEIGHT } from "./chat/ThreadFindBar";
-import { FlowBand } from "~/flow/FlowBand";
 import { usageLimitRecoveryBannerItem } from "./chat/UsageLimitRecoveryBanner";
 import { resolveDraftHeroState } from "./ChatView.logic";
 import { useQueuedRunEdit } from "./chat/useQueuedRunEdit";
@@ -3554,7 +3553,6 @@ export default function ChatView(props: ChatViewProps) {
                                 }
                               />
                             ) : null}
-                            {composerMounted && <FlowBand />}
                             {!composerMounted ? null : (
                               <ChatComposer
                                 canOperateThread={canOperateThread}
