@@ -1,10 +1,12 @@
-// Focus band above the composer: pomodoro, next Dubai prayer, punch-in.
+// Focus band at the top of the composer card: pomodoro, next Dubai prayer, punch-in.
 // Ported from claude-mods/plugins/flow. State lives in this client's localStorage.
 
+import { RotateCcwIcon, Settings2Icon, SkipForwardIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "~/components/ui/button";
 import { toastManager } from "~/components/ui/toast";
+import { cn } from "~/lib/utils";
 
 import chimeUrl from "./chime.wav?url";
 import {
@@ -33,6 +35,7 @@ const LOOK = {
   short: { label: "Break", color: "#9ece6a" },
   long: { label: "Long break", color: "#bb9af7" },
 };
+const FLOW_COLOR = "#e0af68";
 
 const toggleTimer: Action = (shared, now) => ({
   ...shared,
@@ -118,50 +121,89 @@ export function FlowBand() {
   const look = LOOK[pomodoro.phase];
   const prayer = nextPrayer(now);
 
+  // The composer card's top row, inset to line up with the prompt text. One line from `sm` up:
+  // timer and controls left, prayer and flow right, the prayer text truncating before anything
+  // wraps. Narrower screens wrap whole groups instead.
   return (
-    <div className="mb-2 flex flex-col gap-1 text-xs">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span className="font-semibold" style={{ color: look.color }}>
-          {pomodoro.isRunning ? "●" : "○"} {look.label}
-        </span>
-        <span className="font-semibold tabular-nums">{mmss(remainingMs(pomodoro, now))}</span>
-        <span style={{ color: look.color }}>{cycleDots(pomodoro)}</span>
-        <Button size="xs" variant="outline" onClick={() => change(toggleTimer)}>
-          {startLabel(pomodoro, minutes)}
-        </Button>
-        {pomodoro.phase === "work" && (
-          <Button size="xs" variant="ghost" onClick={() => change(skipPhase)}>
-            Break
-          </Button>
-        )}
-        {pomodoro.phase !== "work" && (
-          <Button size="xs" variant="ghost" onClick={() => change(backFromBreak)}>
-            Back to focus
-          </Button>
-        )}
-        <Button size="xs" variant="ghost-muted" onClick={() => change(skipPhase)}>
-          Skip
-        </Button>
-        <Button size="xs" variant="ghost-muted" onClick={() => change(resetTimer)}>
-          Reset
-        </Button>
-        <Button
-          size="xs"
-          variant="ghost-muted"
-          aria-label="Timer settings"
-          onClick={() => setIsSettingsOpen((isOpen) => !isOpen)}
-        >
-          ⚙
-        </Button>
-        <span className="text-muted-foreground">│</span>
-        <span>
-          {prayer.name} {gstClock(prayer.at)}
-        </span>
-        <span className="text-muted-foreground">in {untilText(prayer.at - now)}</span>
-        <span className="text-muted-foreground">│</span>
-        <Button size="xs" variant={punchedAt === null ? "ghost-muted" : "ghost"} onClick={punch}>
-          {punchedAt === null ? "Punch in" : `⚡ In flow · ${gstClock(punchedAt)}`}
-        </Button>
+    <div className="flex flex-col gap-1 ps-4 pe-3 pt-2.5 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 sm:flex-nowrap">
+        <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 sm:flex-nowrap">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold" style={{ color: look.color }}>
+              {look.label}
+            </span>
+            {/* Muted while paused; the toggle's Start / Continue / Pause says the rest. */}
+            <span
+              className={cn(
+                "tabular-nums",
+                pomodoro.isRunning ? "font-semibold" : "text-muted-foreground",
+              )}
+            >
+              {mmss(remainingMs(pomodoro, now))}
+            </span>
+            <span className="opacity-60" style={{ color: look.color }}>
+              {cycleDots(pomodoro)}
+            </span>
+          </div>
+          <div className="flex items-center gap-0.5">
+            <Button size="xs" variant="outline" onClick={() => change(toggleTimer)}>
+              {startLabel(pomodoro, minutes)}
+            </Button>
+            {pomodoro.phase === "work" && (
+              <Button size="xs" variant="ghost" onClick={() => change(skipPhase)}>
+                Break
+              </Button>
+            )}
+            {pomodoro.phase !== "work" && (
+              <Button size="xs" variant="ghost" onClick={() => change(backFromBreak)}>
+                Back to focus
+              </Button>
+            )}
+            <Button
+              size="icon-xs"
+              variant="ghost-muted"
+              aria-label="Skip"
+              title="Skip"
+              onClick={() => change(skipPhase)}
+            >
+              <SkipForwardIcon />
+            </Button>
+            <Button
+              size="icon-xs"
+              variant="ghost-muted"
+              aria-label="Reset"
+              title="Reset"
+              onClick={() => change(resetTimer)}
+            >
+              <RotateCcwIcon />
+            </Button>
+            <Button
+              size="icon-xs"
+              variant="ghost-muted"
+              aria-label="Timer settings"
+              title="Timer settings"
+              onClick={() => setIsSettingsOpen((isOpen) => !isOpen)}
+            >
+              <Settings2Icon />
+            </Button>
+          </div>
+        </div>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="min-w-0 truncate">
+            {prayer.name} {gstClock(prayer.at)}{" "}
+            <span className="text-muted-foreground">in {untilText(prayer.at - now)}</span>
+          </span>
+          {punchedAt === null ? (
+            <Button className="shrink-0" size="xs" variant="ghost-muted" onClick={punch}>
+              Punch in
+            </Button>
+          ) : (
+            <Button className="shrink-0" size="xs" variant="ghost" onClick={punch}>
+              <span style={{ color: FLOW_COLOR }}>⚡ In flow</span>
+              <span className="text-muted-foreground">{gstClock(punchedAt)}</span>
+            </Button>
+          )}
+        </div>
       </div>
       {isSettingsOpen && (
         <div className="flex flex-wrap items-center gap-3 text-muted-foreground">
