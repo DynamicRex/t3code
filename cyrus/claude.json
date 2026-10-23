@@ -1,0 +1,24 @@
+{
+  "settings": {
+    "model": "claude-opus-5-5",
+    "awaySummaryEnabled": false,
+    "remoteControlAtStartup": true,
+    "theme": "dark",
+    "agentPushNotifEnabled": true
+  },
+  "marketplaces": {
+    "claude-plugins-official": ["anthropics/claude-plugins-official"],
+    "visual-explainer-marketplace": ["nicobailon/visual-explainer"],
+    "mattpocock": ["mattpocock/skills"],
+    "claude-mods": ["DynamicRex/claude-mods", "/lambda/nfs/realtime-api-dev/claude-mods"]
+  },
+  "plugins": [
+    "mattpocock-skills@mattpocock",
+    "pyright-lsp@claude-plugins-official",
+    "ts7-lsp@claude-mods",
+    "skill-creator@anthropic-plugin-directory",
+    "visual-explainer@visual-explainer-marketplace",
+    "flow@claude-mods",
+    "threads@claude-mods"
+  ]
+}
