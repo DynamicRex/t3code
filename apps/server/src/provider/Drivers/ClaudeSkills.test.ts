@@ -76,6 +76,41 @@ it.layer(NodeServices.layer)("discoverClaudeSkills", (it) => {
     }),
   );
 
+  it.effect("discovers plugin commands as prefixed skills", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-claude-skills-" });
+      const configDir = path.join(tempDir, "claude-home");
+      const plugin = path.join(configDir, "plugins", "cache", "shop", "kit", "1.0.0");
+      yield* fs.makeDirectory(path.join(plugin, "commands"), { recursive: true });
+      yield* fs.writeFileString(
+        path.join(plugin, "commands", "compare.md"),
+        "---\ndescription: Compare options.\n---\n",
+      );
+      yield* fs.writeFileString(path.join(plugin, "commands", "notes.txt"), "not a command");
+      yield* fs.writeFileString(
+        path.join(configDir, "plugins", "installed_plugins.json"),
+        JSON.stringify({ plugins: { "kit@shop": [{ scope: "user", installPath: plugin }] } }),
+      );
+      yield* fs.writeFileString(
+        path.join(configDir, "settings.json"),
+        '{"enabledPlugins":{"kit@shop":true}}',
+      );
+
+      const skills = yield* discoverClaudeSkills({ homePath: configDir });
+      assert.deepEqual(skills, [
+        {
+          name: "kit:compare",
+          path: path.join(plugin, "commands", "compare.md"),
+          enabled: true,
+          scope: "user",
+          description: "Compare options.",
+        },
+      ]);
+    }),
+  );
+
   it.effect("merges plugin enablement and selects installs in native registry order", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;

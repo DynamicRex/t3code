@@ -18,6 +18,8 @@ type ClaudeSkillRoot = {
   readonly directory: string;
   readonly scope: ClaudeSkillScope;
   readonly prefix?: string;
+  /** Entries are `<name>.md` command files instead of skill folders. */
+  readonly commandFiles?: boolean;
 };
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
@@ -409,6 +411,7 @@ const discoverPluginSkillRoots = Effect.fn("discoverPluginSkillRoots")(function*
         roots.push({ directory, scope, prefix });
       }
     }
+    roots.push({ directory: path.join(installPath, "commands"), scope, prefix, commandFiles: true });
   }
   return roots;
 });
@@ -494,9 +497,13 @@ export const discoverClaudeSkills = Effect.fn("discoverClaudeSkills")(function* 
           .pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []));
 
     for (const entry of [...entries].sort()) {
+      if (root.commandFiles && !entry.endsWith(".md")) continue;
+      const entryName = root.commandFiles ? path.basename(entry, ".md") : entry;
       const skillPath = singleSkill
         ? path.join(root.directory, "SKILL.md")
-        : path.join(root.directory, entry, "SKILL.md");
+        : root.commandFiles
+          ? path.join(root.directory, entry)
+          : path.join(root.directory, entry, "SKILL.md");
       const contents = yield* fileSystem
         .readFileString(skillPath)
         .pipe(Effect.orElseSucceed(() => undefined));
@@ -509,7 +516,7 @@ export const discoverClaudeSkills = Effect.fn("discoverClaudeSkills")(function* 
         continue;
       }
 
-      const directoryName = entry.trim();
+      const directoryName = entryName.trim();
       if (!directoryName) continue;
       let name = directoryName;
       if (root.prefix) {
@@ -518,7 +525,7 @@ export const discoverClaudeSkills = Effect.fn("discoverClaudeSkills")(function* 
         const unprefixedName = declaredName?.startsWith(`${root.prefix}:`)
           ? declaredName.slice(root.prefix.length + 1)
           : declaredName;
-        name = `${root.prefix}:${(unprefixedName || entry).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+        name = `${root.prefix}:${(unprefixedName || entryName).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
         // Advertise only exact native names the shared composer grammar can invoke.
         const [mention] = `$${name}`.matchAll(SKILL_MENTION_PATTERN);
         if (mention?.[2] !== name) continue;
