@@ -11,7 +11,7 @@ raw=https://raw.githubusercontent.com/$repo/flow
 # Wrapped in a function so bash reads the whole script before any command can consume the pipe.
 main() {
     export PATH="$HOME/.local/bin:$PATH"
-    local tmp t3_home known version line name sources source
+    local t3_home known version line name sources source
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
     curl -fsSL "$raw/cyrus/claude.json" -o "$tmp/claude.json"
