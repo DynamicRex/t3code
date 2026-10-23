@@ -1,0 +1,100 @@
+# The release button: builds the t3 CLI archives for Linux and Windows from the chosen
+# branch and publishes them as a GitHub release, which `t3 update` and cyrus/install.* read.
+name: Cyrus release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+      # One patch above the official version, so `t3 update` ranks it above an official install.
+      - id: version
+        run: |
+          IFS=. read -r major minor patch < <(node -p 'require("./apps/server/package.json").version')
+          echo "version=$major.$minor.$((patch + 1))-cyrus.$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-24.04, platform: linux, key: linux-x64, exe: t3-resource-monitor }
+          - { os: windows-2025, platform: win, key: win32-x64, exe: t3-resource-monitor.exe }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          run-install: false
+      - run: vp install
+      - run: node scripts/update-release-package-versions.ts "$VERSION"
+      - run: vp run --filter t3 build
+      - run: node scripts/apply-web-brand-assets.ts production apps/server/dist/client
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+      - name: Build resource monitor
+        run: |
+          cargo build --locked --release --manifest-path native/resource-monitor/Cargo.toml
+          mkdir -p "$RUNNER_TEMP/resource-monitor/${{ matrix.key }}"
+          cp "native/resource-monitor/target/release/${{ matrix.exe }}" "$RUNNER_TEMP/resource-monitor/${{ matrix.key }}/"
+      - run: node apps/server/scripts/cli.ts build-exe --verbose
+      - run: >-
+          node scripts/build-cli-archive.ts --platform ${{ matrix.platform }} --arch x64
+          --version "$VERSION" --resource-monitor-dir "$RUNNER_TEMP/resource-monitor" --output-dir release-cli
+      - run: node scripts/smoke-cli-archive.ts --archive release-cli/* --expect-version "$VERSION"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cli-${{ matrix.key }}
+          path: release-cli/*
+          if-no-files-found: error
+
+  release:
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: cli-*
+          merge-multiple: true
+          path: release-cli
+      - name: Publish
+        working-directory: release-cli
+        run: |
+          sha256sum t3-* > SHA256SUMS
+          gh release create "v$VERSION" t3-* SHA256SUMS --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "T3 Code $VERSION" --notes "Built from ${GITHUB_REF_NAME} at ${GITHUB_SHA}."
+
+  # The one-liner a fresh Windows machine runs, in Windows PowerShell 5.1, against the new release.
+  verify_windows:
+    needs: [version, release]
+    runs-on: windows-2025
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - shell: powershell
+        run: |
+          irm https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/cyrus/install.ps1 | iex
+          $installed = t3 --version
+          if ($installed -notmatch [regex]::Escape($env:VERSION)) { throw "t3 reports '$installed', expected $env:VERSION" }
+          $settings = Get-Content "$HOME\.t3\userdata\settings.json" -Raw | ConvertFrom-Json
+          if ($settings.defaultModelSelection.model -ne "claude-opus-5-5") { throw "T3 settings were not applied" }
