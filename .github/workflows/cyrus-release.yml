@@ -54,6 +54,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/resource-monitor/${{ matrix.key }}"
           cp "native/resource-monitor/target/release/${{ matrix.exe }}" "$RUNNER_TEMP/resource-monitor/${{ matrix.key }}/"
       - run: node apps/server/scripts/cli.ts build-exe --verbose
+      # The Linux archive ships libatomic.so.1 and points t3's RUNPATH at it (same step as release-desktop.yml).
+      - name: Install patchelf
+        if: matrix.platform == 'linux'
+        run: command -v patchelf || { sudo apt-get update && sudo apt-get install -y patchelf; }
       - run: >-
           node scripts/build-cli-archive.ts --platform ${{ matrix.platform }} --arch x64
           --version "$VERSION" --resource-monitor-dir "$RUNNER_TEMP/resource-monitor" --output-dir release-cli
